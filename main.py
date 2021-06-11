@@ -40,7 +40,7 @@ def main():
         import torch_xla
         import torch_xla.core.xla_model as xm
         device = xm.xla_device()
-    else if args.device == 'cuda':
+    elif args.device == 'cuda':
         device = torch.device("cuda")
     else:
         device = torch.device('cpu')
