@@ -143,7 +143,7 @@ class ChestXRayImages():
 
     @property
     def data_test(self):
-        return self._data_test
+        return self._data_test[['idx', 'findings']]
 
 
     def data_val(self, fold_id: int):
