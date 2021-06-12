@@ -8,6 +8,7 @@ from .loss import AverageMeter
 import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score
+import torch.nn as nn
 from torch.nn import Module
 from torch.nn.modules.loss import _Loss
 from torch.optim.optimizer import Optimizer
