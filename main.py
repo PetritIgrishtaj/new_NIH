@@ -98,7 +98,7 @@ def main():
     batches_per_epoch = 1000 # num_images = batch_size*batches_per_epoch*num_tpu_workers
     num_epochs        = 1
     batch_verbose     = 100
-    num_tpu_workers   = 8
+    num_tpu_workers   = 1
 
     # learning rate
     eta   = 0.0001
