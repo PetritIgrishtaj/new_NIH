@@ -4,7 +4,6 @@ import time
 from typing import List
 
 from .loss import AverageMeter
-import .globals as g
 
 import numpy as np
 import torch
@@ -32,6 +31,7 @@ def get_roc_auc_score(y_true, y_probs, labels):
     return class_roc_auc_list
 
 def train_fn_tpu(
+    model,
     epoch: int,
     para_loader,
     optimizer,
@@ -40,7 +40,7 @@ def train_fn_tpu(
     device
 ):
     # Model must be a global variable
-    g.model.train()
+    model.train()
     trn_loss_meter = AverageMeter()
 
     for batch_idx, (inputs, labels) in enumerate(para_loader):
@@ -80,10 +80,10 @@ def train_fn_tpu(
 
     return trn_loss_meter.avg
 
-def valid_fn_tpu(epoch, para_loader, criterion, device):
+def valid_fn_tpu(model, epoch, para_loader, criterion, device):
 
     # initialize
-    g.model.eval()
+    model.eval()
     val_loss_meter = AverageMeter()
 
     # validation loop
@@ -216,6 +216,7 @@ def val_epoch(device, val_loader, model, loss_fn, labels, epochs_till_now = None
     return val_loss_list, running_val_loss/float(len(val_loader.dataset)), roc_auc
 
 def run_tpu(
+    model,
     train_dataset,
     valid_dataset,
     train_bs,
@@ -287,12 +288,13 @@ def run_tpu(
         train_start = time.time()
         xm.master_print('- training...')
         para_loader = pl.ParallelLoader(train_loader, [device])
-        trn_loss = train_fn(epoch       = epoch + 1,
-                            para_loader = para_loader.per_device_loader(device),
-                            criterion   = criterion,
-                            optimizer   = optimizer,
-                            scheduler   = scheduler,
-                            device      = device)
+        trn_loss = train_fn_tpu(model       = model,
+                                epoch       = epoch + 1,
+                                para_loader = para_loader.per_device_loader(device),
+                                criterion   = criterion,
+                                optimizer   = optimizer,
+                                scheduler   = scheduler,
+                                device      = device)
         del para_loader
         gc.collect()
 
@@ -300,10 +302,11 @@ def run_tpu(
         valid_start = time.time()
         xm.master_print('- validation...')
         para_loader = pl.ParallelLoader(valid_loader, [device])
-        val_loss = valid_fn(epoch       = epoch + 1,
-                            para_loader = para_loader.per_device_loader(device),
-                            criterion   = criterion,
-                            device      = device)
+        val_loss = valid_fn_tpu(model       = model
+                                epoch       = epoch + 1,
+                                para_loader = para_loader.per_device_loader(device),
+                                criterion   = criterion,
+                                device      = device)
         del para_loader
         gc.collect()
 

@@ -61,10 +61,30 @@ def setup_datasets(
 
 
 # wrapper for multi core processing
-def get_mp_wrapper(model):
+def get_mp_wrapper(
+    model,
+    train_dataset,
+    valid_dataset,
+    train_bs,
+    valid_bs,
+    eta,
+    step,
+    gamma,
+    num_epochs,
+    device
+):
     def _mp_wrapper(rank, flags):
         torch.set_default_tensor_type('torch.FloatTensor')
-        trn_losses, val_losses = trainer.run_tpu(model)
+        trn_losses, val_losses = trainer.run_tpu(
+            model,
+            train_dataset,
+            valid_dataset,
+            train_bs,
+            valid_bs,
+            (eta, step, gamma),
+            num_epochs,
+            device
+        )
         np.save('trn_losses.npy', np.array(trn_losses))
         np.save('val_losses.npy', np.array(val_losses))
 
@@ -127,7 +147,19 @@ def main():
     # modeling
     gc.collect()
     FLAGS = {}
-    xmp.spawn(get_mp_wrapper(model), args = (FLAGS,), nprocs = num_tpu_workers, start_method = 'fork')
+    xmp.spawn(get_mp_wrapper(model,
+                             data_train,
+                             data_val,
+                             args.train_bs,
+                             args.val_bs,
+                             eta,
+                             steps,
+                             gamma,
+                             2,
+                             device),
+              args = (FLAGS,),
+              nprocs = num_tpu_workers,
+              start_method = 'fork')
 
 if __name__ == "__main__":
     main()
