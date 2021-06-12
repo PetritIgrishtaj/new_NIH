@@ -41,7 +41,8 @@ def train_fn_tpu(
     optimizer,
     criterion,
     scheduler,
-    device
+    device,
+    log_interval
 ):
     # Model must be a global variable
     model.train()
@@ -63,7 +64,7 @@ def train_fn_tpu(
         trn_loss_meter.update(loss.detach().item(), inputs.size(0))
 
         # feedback
-        if (batch_idx > 0) and (batch_idx % batch_verbose == 0):
+        if (batch_idx > 0) and (batch_idx % log_interval == 0):
             xm.master_print('-- batch {} | cur_loss = {:.6f}, avg_loss = {:.6f}'.format(
                 batch_idx, loss.item(), trn_loss_meter.avg))
 
@@ -84,7 +85,7 @@ def train_fn_tpu(
 
     return trn_loss_meter.avg
 
-def valid_fn_tpu(model, epoch, para_loader, criterion, device):
+def valid_fn_tpu(model, epoch, para_loader, criterion, device, log_interval):
 
     # initialize
     model.eval()
@@ -106,7 +107,7 @@ def valid_fn_tpu(model, epoch, para_loader, criterion, device):
         val_loss_meter.update(loss.detach().item(), inputs.size(0))
 
         # feedback
-        if (batch_idx > 0) and (batch_idx % batch_verbose == 0):
+        if (batch_idx > 0) and (batch_idx % log_interval == 0):
             xm.master_print('-- batch {} | cur_loss = {:.6f}, avg_loss =  {:.6f}'.format(
                 batch_idx, loss.item(), val_loss_meter.avg))
 
@@ -298,7 +299,8 @@ def run_tpu(
                                 criterion   = criterion,
                                 optimizer   = optimizer,
                                 scheduler   = scheduler,
-                                device      = device)
+                                device      = device,
+                                log_interval= 1)
         del para_loader
         gc.collect()
 
@@ -310,7 +312,8 @@ def run_tpu(
                                 epoch       = epoch + 1,
                                 para_loader = para_loader.per_device_loader(device),
                                 criterion   = criterion,
-                                device      = device)
+                                device      = device
+                                log_interval= 1)
         del para_loader
         gc.collect()
 
