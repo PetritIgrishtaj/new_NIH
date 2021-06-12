@@ -81,9 +81,9 @@ def main():
     # optimizer and loss
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr = args.lr)
-    scheduler = lr_scheduler.StepLR(optimizer,
-                                    step_size = args.step,
-                                    gamma = args.gamma)
+    scheduler = optim.lr_scheduler.StepLR(optimizer,
+                                          step_size = args.step,
+                                          gamma = args.gamma)
 
     trainer.run(device=device,
                 train_loader=train_loader,
