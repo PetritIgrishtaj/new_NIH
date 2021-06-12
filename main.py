@@ -29,7 +29,7 @@ def main():
     parser.add_argument('--step', type = int, default = 1)
     parser.add_argument('-gamma', type = float, default = 0.5)
     parser.add_argument('--device', type = str, default = 'cpu', help = 'Force usage of device')
-    parser.add_argument('--epochs', type = str, default = 2, help = 'Train for n epochs')
+    parser.add_argument('--epochs', type = int, default = 2, help = 'Train for n epochs')
     parser.add_argument('--log-interval', type = int, default = 5, help = 'log every n batches')
     parser.add_argument('--save-interval', type = int, default = 5, help = 'save every n batches')
     parser.add_argument('--data-frac', type = float, default = 1, help = 'use only fraction of the data')
