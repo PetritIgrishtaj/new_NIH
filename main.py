@@ -134,7 +134,7 @@ def main():
 
     # device specific setup
     if args.device == 'tpu':
-        mx = xmp.MpModelWrapper(g.model)
+        mx = xmp.MpModelWrapper(model)
         device = xm.xla_device()
         model  = mx.to(device)
     elif args.device == 'cuda':
