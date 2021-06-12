@@ -10,6 +10,7 @@ import torch
 from sklearn.metrics import roc_auc_score
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim import lr_scheduler
 from torch.nn import Module
 from torch.nn.modules.loss import _Loss
 from torch.optim.optimizer import Optimizer
