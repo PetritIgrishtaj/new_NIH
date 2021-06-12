@@ -25,7 +25,9 @@ def main():
     parser.add_argument('--test-bs', type = int, default = 64, help = 'test batch size')
     parser.add_argument('--val-bs', type = int, default = 64, help = 'val batch size')
     parser.add_argument('--train-bs', type = int, default = 64, help = 'train batch size')
-    parser.add_argument('--lr', type = float, default = 1e-5, help = 'Learning Rate passed to optimizer')
+    parser.add_argument('--lr', type = float, default = 0.0001, help = 'Learning Rate passed to optimizer')
+    parser.add_argument('--step', type = int, default = 1)
+    parser.add_argument('-gamma', type = float, default = 0.5)
     parser.add_argument('--device', type = str, default = 'cpu', help = 'Force usage of device')
     parser.add_argument('--epochs', type = str, default = 2, help = 'Train for n epochs')
     parser.add_argument('--log-interval', type = int, default = 5, help = 'log every n batches')
@@ -36,11 +38,7 @@ def main():
     parser.add_argument('--seed', type=int, default=0, help='Seed the random generator to get reproducability')
     args = parser.parse_args()
 
-    if args.device == 'tpu':
-        import torch_xla
-        import torch_xla.core.xla_model as xm
-        device = xm.xla_device()
-    elif args.device == 'cuda':
+    if args.device == 'cuda':
         device = torch.device("cuda")
     else:
         device = torch.device('cpu')
@@ -63,16 +61,6 @@ def main():
         transform=transform
     )
 
-    model = net.get_model(len(ChestXRayImageDataset.labels))
-
-    summary(model, input_size=(args.train_bs, 3, 244, 244))
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-                           lr = args.lr)
-
-    print('Using device: {}'.format(device))
-    print('With {} Test datasets, {} val data sets and {} train datasets'.format(
-        len(data_test), len(data_val), len(data_train)
-    ))
 
     test_loader = torch.utils.data.DataLoader(data_test,
                                               batch_size=args.test_bs)
@@ -81,12 +69,27 @@ def main():
     train_loader = torch.utils.data.DataLoader(data_train,
                                                batch_size=args.train_bs)
 
-    loss_fn = nn.BCEWithLogitsLoss()
+    model = net.get_model(len(ChestXRayImageDataset.labels))
+
+    summary(model, input_size=(args.train_bs, 3, 244, 244))
+
+    print('Using device: {}'.format(device))
+    print('With {} Test datasets, {} val data sets and {} train datasets'.format(
+        len(data_test), len(data_val), len(data_train)
+    ))
+
+    # optimizer and loss
+    criterion = nn.BCEWithLogitsLoss()
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr = args.lr)
+    scheduler = lr_scheduler.StepLR(optimizer,
+                                    step_size = args.step,
+                                    gamma = args.gamma)
 
     trainer.run(device=device,
                 train_loader=train_loader,
                 val_loader=val_loader,
                 test_loader=test_loader,
+                scheduler=scheduler,
                 model=model,
                 epochs=args.epochs,
                 loss_fn=loss_fn,

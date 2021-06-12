@@ -25,7 +25,8 @@ def get_roc_auc_score(y_true, y_probs, labels):
     return class_roc_auc_list
 
 
-def train_epoch(device, train_loader, model, loss_fn, optimizer, epochs_till_now, final_epoch, log_interval):
+def train_epoch(device, train_loader, model, loss_fn, optimizer,
+                epochs_till_now, final_epoch, scheduler, log_interval):
     '''
     Takes in the data from the 'train_loader', calculates the loss over it using the 'loss_fn'
     and optimizes the 'model' using the 'optimizer'
@@ -65,6 +66,9 @@ def train_epoch(device, train_loader, model, loss_fn, optimizer, epochs_till_now
             ))
 
         start_time = time.time()
+
+    # scheduler step
+    scheduler.step()
 
     return train_loss_list, running_train_loss/float(len(train_loader.dataset))
 
@@ -127,6 +131,7 @@ def run(device: str,
         train_loader: DataLoader,
         val_loader: DataLoader,
         test_loader: DataLoader,
+        scheduler,
         model: Module,
         epochs: int,
         loss_fn: _Loss,
@@ -151,6 +156,7 @@ def run(device: str,
                     optimizer=optimizer,
                     epochs_till_now=epoch,
                     final_epoch=epochs,
+                    scheduler=scheduler,
                     log_interval=log_interval)
 
         print('--- VAL ---')
