@@ -92,7 +92,7 @@ def main():
                 scheduler=scheduler,
                 model=model,
                 epochs=args.epochs,
-                loss_fn=loss_fn,
+                loss_fn=criterion,
                 optimizer=optimizer,
                 log_interval=args.log_interval,
                 save_interval=args.save_interval,
