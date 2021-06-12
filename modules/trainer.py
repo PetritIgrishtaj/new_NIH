@@ -312,7 +312,7 @@ def run_tpu(
                                 epoch       = epoch + 1,
                                 para_loader = para_loader.per_device_loader(device),
                                 criterion   = criterion,
-                                device      = device
+                                device      = device,
                                 log_interval= 1)
         del para_loader
         gc.collect()
