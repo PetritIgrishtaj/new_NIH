@@ -62,7 +62,7 @@ def setup_datasets(
 
 # wrapper for multi core processing
 def get_mp_wrapper(model):
-    def _mp_wrapper(rank, flags)
+    def _mp_wrapper(rank, flags):
         torch.set_default_tensor_type('torch.FloatTensor')
         trn_losses, val_losses = trainer.run_tpu(model)
         np.save('trn_losses.npy', np.array(trn_losses))
