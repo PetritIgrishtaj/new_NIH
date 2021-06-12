@@ -73,8 +73,8 @@ def train_fn_tpu(
         gc.collect()
 
         # early stop
-        if batch_idx > batches_per_epoch:
-            break
+        # if batch_idx > batches_per_epoch:
+        #     break
 
     # scheduler step
     scheduler.step()
