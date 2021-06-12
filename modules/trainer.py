@@ -1,6 +1,10 @@
 import os
+import gc
 import time
 from typing import List
+
+from .loss import AverageMeter
+import .globals as g
 
 import numpy as np
 import torch
@@ -9,6 +13,9 @@ from torch.nn import Module
 from torch.nn.modules.loss import _Loss
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
+
+if "TPU" in os.environ:
+    import torch_xla.core.xla_model as xm
 
 
 def get_roc_auc_score(y_true, y_probs, labels):
@@ -23,6 +30,91 @@ def get_roc_auc_score(y_true, y_probs, labels):
 
 
     return class_roc_auc_list
+
+def train_fn_tpu(
+    epoch: int,
+    para_loader,
+    optimizer,
+    criterion,
+    scheduler,
+    device
+):
+    # Model must be a global variable
+    g.model.train()
+    trn_loss_meter = AverageMeter()
+
+    for batch_idx, (inputs, labels) in enumerate(para_loader):
+        # extract inputs and labels
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+        optimizer.zero_grad()
+
+        # forward and backward pass
+        preds = model(inputs)
+        loss  = criterion(preds, labels)
+        loss.backward()
+        xm.optimizer_step(optimizer, barrier = True) # barrier is required on single-core training but can be dropped with multiple cores
+
+        # compute loss
+        trn_loss_meter.update(loss.detach().item(), inputs.size(0))
+
+        # feedback
+        if (batch_idx > 0) and (batch_idx % batch_verbose == 0):
+            xm.master_print('-- batch {} | cur_loss = {:.6f}, avg_loss = {:.6f}'.format(
+                batch_idx, loss.item(), trn_loss_meter.avg))
+
+        # clear memory
+        del inputs, labels, preds, loss
+        gc.collect()
+
+        # early stop
+        if batch_idx > batches_per_epoch:
+            break
+
+    # scheduler step
+    scheduler.step()
+
+    # clear memory
+    del para_loader, batch_idx
+    gc.collect()
+
+    return trn_loss_meter.avg
+
+def valid_fn_tpu(epoch, para_loader, criterion, device):
+
+    # initialize
+    g.model.eval()
+    val_loss_meter = AverageMeter()
+
+    # validation loop
+    for batch_idx, (inputs, labels) in enumerate(para_loader):
+
+        # extract inputs and labels
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+
+        # compute preds
+        with torch.no_grad():
+            preds = model(inputs)
+            loss  = criterion(preds, labels)
+
+        # compute loss
+        val_loss_meter.update(loss.detach().item(), inputs.size(0))
+
+        # feedback
+        if (batch_idx > 0) and (batch_idx % batch_verbose == 0):
+            xm.master_print('-- batch {} | cur_loss = {:.6f}, avg_loss =  {:.6f}'.format(
+                batch_idx, loss.item(), val_loss_meter.avg))
+
+        # clear memory
+        del inputs, labels, preds, loss
+        gc.collect()
+
+    # clear memory
+    del para_loader, batch_idx
+    gc.collect()
+
+    return val_loss_meter.avg
 
 
 def train_epoch(device, train_loader, model, loss_fn, optimizer, epochs_till_now, final_epoch, log_interval):
@@ -122,6 +214,122 @@ def val_epoch(device, val_loader, model, loss_fn, labels, epochs_till_now = None
     roc_auc = get_roc_auc_score(gt, probs, labels)
 
     return val_loss_list, running_val_loss/float(len(val_loader.dataset)), roc_auc
+
+def run_tpu(
+    train_dataset,
+    valid_dataset,
+    train_bs,
+    valid_bs,
+    learn_params,
+    num_epochs,
+    device
+):
+    eta, step, gamma = learn_params
+
+    ### DATA PREP
+
+    # data samplers
+    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset,
+                                                                    num_replicas = xm.xrt_world_size(),
+                                                                    rank         = xm.get_ordinal(),
+                                                                    shuffle      = True)
+    valid_sampler = torch.utils.data.distributed.DistributedSampler(valid_dataset,
+                                                                    num_replicas = xm.xrt_world_size(),
+                                                                    rank         = xm.get_ordinal(),
+                                                                    shuffle      = False)
+
+    # data loaders
+    valid_loader = torch.utils.data.DataLoader(valid_dataset,
+                                               batch_size  = valid_bs,
+                                               sampler     = valid_sampler,
+                                               num_workers = 0,
+                                               pin_memory  = True)
+    train_loader = torch.utils.data.DataLoader(train_dataset,
+                                               batch_size  = train_bs,
+                                               sampler     = train_sampler,
+                                               num_workers = 0,
+                                               pin_memory  = True)
+
+
+    # scale LR
+    scaled_eta = eta * xm.xrt_world_size()
+
+    # optimizer and loss
+    criterion = nn.BCEWithLogitsLoss()
+    optimizer = optim.Adam(model.parameters(), lr = scaled_eta)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size = step, gamma = gamma)
+
+
+    ### MODELING
+
+    # placeholders
+    trn_losses = []
+    val_losses = []
+    best_val_loss = 1
+
+    # modeling loop
+    gc.collect()
+    for epoch in range(num_epochs):
+
+        # display info
+        xm.master_print('-'*55)
+        xm.master_print('EPOCH {}/{}'.format(epoch + 1, num_epochs))
+        xm.master_print('-'*55)
+        xm.master_print('- initialization | TPU cores = {}, lr = {:.6f}'.format(
+            xm.xrt_world_size(), scheduler.get_lr()[len(scheduler.get_lr()) - 1] / xm.xrt_world_size()))
+        epoch_start = time.time()
+        gc.collect()
+
+        # update train_loader shuffling
+        train_loader.sampler.set_epoch(epoch)
+
+        # training pass
+        train_start = time.time()
+        xm.master_print('- training...')
+        para_loader = pl.ParallelLoader(train_loader, [device])
+        trn_loss = train_fn(epoch       = epoch + 1,
+                            para_loader = para_loader.per_device_loader(device),
+                            criterion   = criterion,
+                            optimizer   = optimizer,
+                            scheduler   = scheduler,
+                            device      = device)
+        del para_loader
+        gc.collect()
+
+        # validation pass
+        valid_start = time.time()
+        xm.master_print('- validation...')
+        para_loader = pl.ParallelLoader(valid_loader, [device])
+        val_loss = valid_fn(epoch       = epoch + 1,
+                            para_loader = para_loader.per_device_loader(device),
+                            criterion   = criterion,
+                            device      = device)
+        del para_loader
+        gc.collect()
+
+        # save weights
+        if val_loss < best_val_loss:
+            xm.save(model.state_dict(), 'weights_{}.pt'.format(model_name))
+            best_val_loss = val_loss
+
+        # display info
+        xm.master_print('- elapsed time | train = {:.2f} min, valid = {:.2f} min'.format(
+            (valid_start - train_start) / 60, (time.time() - valid_start) / 60))
+        xm.master_print('- average loss | train = {:.6f}, valid = {:.6f}'.format(
+            trn_loss, val_loss))
+        xm.master_print('-'*55)
+        xm.master_print('')
+
+        # save losses
+        trn_losses.append(trn_loss)
+        val_losses.append(val_loss)
+        del trn_loss, val_loss
+        gc.collect()
+
+    # print results
+    xm.master_print('Best results: loss = {:.6f} (epoch {})'.format(np.min(val_losses), np.argmin(val_losses) + 1))
+
+    return trn_losses, val_losses
 
 def run(device: str,
         train_loader: DataLoader,
