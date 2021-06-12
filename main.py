@@ -153,7 +153,7 @@ def main():
                              args.train_bs,
                              args.val_bs,
                              eta,
-                             steps,
+                             step,
                              gamma,
                              2,
                              device),
