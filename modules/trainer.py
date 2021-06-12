@@ -302,7 +302,7 @@ def run_tpu(
         valid_start = time.time()
         xm.master_print('- validation...')
         para_loader = pl.ParallelLoader(valid_loader, [device])
-        val_loss = valid_fn_tpu(model       = model
+        val_loss = valid_fn_tpu(model       = model,
                                 epoch       = epoch + 1,
                                 para_loader = para_loader.per_device_loader(device),
                                 criterion   = criterion,
