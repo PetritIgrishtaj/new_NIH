@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader
 
 if "TPU" in os.environ:
     import torch_xla.core.xla_model as xm
+    import torch_xla.distributed.parallel_loader as pl
 
 
 def get_roc_auc_score(y_true, y_probs, labels):
@@ -280,7 +281,7 @@ def run_tpu(
         xm.master_print('EPOCH {}/{}'.format(epoch + 1, num_epochs))
         xm.master_print('-'*55)
         xm.master_print('- initialization | TPU cores = {}, lr = {:.6f}'.format(
-            xm.xrt_world_size(), scheduler.get_lr()[len(scheduler.get_lr()) - 1] / xm.xrt_world_size()))
+            xm.xrt_world_size(), scheduler.get_last_lr() / xm.xrt_world_size()))
         epoch_start = time.time()
         gc.collect()
 
