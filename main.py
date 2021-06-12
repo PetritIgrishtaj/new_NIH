@@ -80,8 +80,8 @@ def main():
 
     # Setting the training variables
     # trainer.criterion = nn.BCEWithLogitsLoss()
-    trainer.criterion = loss.BinaryFocalLossWithLogits(alpha=0.5,
-                                                       reduction='mean')
+    trainer.criterion = loss.BinaryFocalLossWithLogits(alpha=0.25,
+                                                       reduction='sum')
     trainer.optimizer = optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr = args.lr
