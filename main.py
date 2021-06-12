@@ -71,34 +71,35 @@ def main():
 
     model = net.get_model(len(ChestXRayImageDataset.labels))
 
+    # Print Network and training info
     summary(model, input_size=(args.train_bs, 3, 244, 244))
-
     print('Using device: {}'.format(device))
     print('With {} Test datasets, {} val data sets and {} train datasets'.format(
         len(data_test), len(data_val), len(data_train)
     ))
 
-    # optimizer and loss
-    criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr = args.lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer,
-                                          step_size = args.step,
-                                          gamma = args.gamma)
+    # Setting the training variables
+    trainer.criterion = nn.BCEWithLogitsLoss()
+    trainer.optimizer = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = args.lr
+    )
+    trainer.scheduler = optim.lr_scheduler.StepLR(
+        trainer.optimizer,
+        step_size = args.step,
+        gamma = args.gamma
+    )
 
-    trainer.run(device=device,
-                train_loader=train_loader,
-                val_loader=val_loader,
-                test_loader=test_loader,
-                scheduler=scheduler,
-                model=model,
-                epochs=args.epochs,
-                loss_fn=criterion,
-                optimizer=optimizer,
-                log_interval=args.log_interval,
-                save_interval=args.save_interval,
-                labels=data_train.labels,
-                lr=args.lr,
-                model_dir=args.model_path)
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = args.epochs,
+                log_interval  = args.log_interval,
+                save_interval = args.save_interval,
+                labels        = data_train.labels,
+                model_dir     = args.model_path)
 
 if __name__ == "__main__":
     main()

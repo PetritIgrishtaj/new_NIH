@@ -7,8 +7,14 @@ import torch
 from sklearn.metrics import roc_auc_score
 from torch.nn import Module
 from torch.nn.modules.loss import _Loss
+from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
+from typing import Callable
+
+criterion: _Loss        = None
+optimizer: Optimizer    = None
+scheduler: _LRScheduler = None
 
 
 def get_roc_auc_score(y_true, y_probs, labels):
@@ -25,8 +31,14 @@ def get_roc_auc_score(y_true, y_probs, labels):
     return class_roc_auc_list
 
 
-def train_epoch(device, train_loader, model, loss_fn, optimizer,
-                epochs_till_now, final_epoch, scheduler, log_interval):
+def train_epoch(
+    device: str,
+    model: Module,
+    loader: DataLoader,
+    epochs_till_now: int,
+    final_epoch: int,
+    log_interval: int
+):
     '''
     Takes in the data from the 'train_loader', calculates the loss over it using the 'loss_fn'
     and optimizes the 'model' using the 'optimizer'
@@ -39,13 +51,15 @@ def train_epoch(device, train_loader, model, loss_fn, optimizer,
     train_loss_list = []
 
     start_time = time.time()
-    for batch_idx, (img, target) in enumerate(train_loader):
+    for batch_idx, (img, target) in enumerate(loader):
 
         img, target = img.to(device), target.to(device)
 
         optimizer.zero_grad()
-        out = model(img)
-        loss = loss_fn(out, target)
+
+        out  = model(img)
+        loss = criterion(out, target)
+
         running_train_loss += loss.item()*img.shape[0]
         train_loss_list.append(loss.item())
 
@@ -57,7 +71,7 @@ def train_epoch(device, train_loader, model, loss_fn, optimizer,
             m, s = divmod(batch_time, 60)
             print('Train Loss for batch {}/{} @epoch{}/{}: {} in {} mins {} secs'.format(
                 str(batch_idx+1).zfill(3),
-                str(len(train_loader)).zfill(3),
+                str(len(loader)).zfill(3),
                 epochs_till_now,
                 final_epoch,
                 round(loss.item(), 5),
@@ -70,10 +84,17 @@ def train_epoch(device, train_loader, model, loss_fn, optimizer,
     # scheduler step
     scheduler.step()
 
-    return train_loss_list, running_train_loss/float(len(train_loader.dataset))
+    return train_loss_list, running_train_loss/float(len(loader.dataset))
 
-def val_epoch(device, val_loader, model, loss_fn, labels, epochs_till_now = None,
-              final_epoch = None, log_interval = 1, test_only = False):
+def val_epoch(
+    device: str,
+    loader: DataLoader,
+    model: Module,
+    labels: List,
+    epochs_till_now: int = None,
+    final_epoch: int = None,
+    log_interval:int = 1
+):
     '''
     It essentially takes in the val_loader/test_loader, the model and the loss function and evaluates
     the loss and the ROC AUC score for all the data in the dataloader.
@@ -84,7 +105,7 @@ def val_epoch(device, val_loader, model, loss_fn, labels, epochs_till_now = None
 
     running_val_loss = 0
     val_loss_list = []
-    val_loader_examples_num = len(val_loader.dataset)
+    val_loader_examples_num = len(loader.dataset)
 
     probs = np.zeros((val_loader_examples_num, 15), dtype = np.float32)
     gt    = np.zeros((val_loader_examples_num, 15), dtype = np.float32)
@@ -92,12 +113,12 @@ def val_epoch(device, val_loader, model, loss_fn, labels, epochs_till_now = None
 
     with torch.no_grad():
         batch_start_time = time.time()
-        for batch_idx, (img, target) in enumerate(val_loader):
-            img = img.to(device)
+        for batch_idx, (img, target) in enumerate(loader):
+            img    = img.to(device)
             target = target.to(device)
 
             out = model(img)
-            loss = loss_fn(out, target)
+            loss = criterion(out, target)
             running_val_loss += loss.item()*img.shape[0]
             val_loss_list.append(loss.item())
 
@@ -107,12 +128,11 @@ def val_epoch(device, val_loader, model, loss_fn, labels, epochs_till_now = None
             k += out.shape[0]
 
             if ((batch_idx+1)%log_interval == 0):
-
                 batch_time = time.time() - batch_start_time
                 m, s = divmod(batch_time, 60)
                 print('Val Loss   for batch {}/{} @epoch{}/{}: {} in {} mins {} secs'.format(
                     str(batch_idx+1).zfill(3),
-                    str(len(val_loader)).zfill(3),
+                    str(len(loader)).zfill(3),
                     epochs_till_now,
                     final_epoch,
                     round(loss.item(), 5),
@@ -125,49 +145,46 @@ def val_epoch(device, val_loader, model, loss_fn, labels, epochs_till_now = None
     # metric scenes
     roc_auc = get_roc_auc_score(gt, probs, labels)
 
-    return val_loss_list, running_val_loss/float(len(val_loader.dataset)), roc_auc
+    return val_loss_list, running_val_loss/float(len(loader.dataset)), roc_auc
 
 def run(device: str,
+        model: Module,
         train_loader: DataLoader,
         val_loader: DataLoader,
-        test_loader: DataLoader,
-        scheduler,
-        model: Module,
         epochs: int,
-        loss_fn: _Loss,
-        optimizer: Optimizer,
         log_interval: int,
         save_interval: int,
         labels: List,
-        lr: float,
         model_dir: str):
+
+    # Create directory where the models will be stored
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
 
     model.to(device)
-    loss_fn.to(device)
+    criterion.to(device)
 
     for epoch in range(1, epochs+1):
-        print('--- TRAIN ---')
-        train_epoch(device=device,
-                    train_loader=train_loader,
-                    model=model,
-                    loss_fn=loss_fn,
-                    optimizer=optimizer,
-                    epochs_till_now=epoch,
-                    final_epoch=epochs,
-                    scheduler=scheduler,
-                    log_interval=log_interval)
+        print('-'*55)
+        print('TRAIN')
+        print('-'*55)
+        train_epoch(device          = device,
+                    model           = model,
+                    loader          = train_loader,
+                    epochs_till_now = epoch,
+                    final_epoch     = epochs,
+                    log_interval    = log_interval)
 
-        print('--- VAL ---')
-        _, _, roc = val_epoch(device=device,
-                              val_loader=val_loader,
-                              model=model,
-                              loss_fn=loss_fn,
-                              labels=labels,
-                              epochs_till_now=epoch,
-                              final_epoch=epochs,
-                              log_interval=log_interval)
+        print('-'*55)
+        print('VAL')
+        print('-'*55)
+        _, _, roc = val_epoch(device          = device,
+                              loader          = val_loader,
+                              model           = model,
+                              labels          = labels,
+                              epochs_till_now = epoch,
+                              final_epoch     = epochs,
+                              log_interval    = log_interval)
         print('ROC_AUC_SCORE: {}'.format(roc))
 
         if (epoch%save_interval == 0):
