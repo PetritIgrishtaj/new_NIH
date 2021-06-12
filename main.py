@@ -7,7 +7,7 @@ import torch.optim as optim
 from torchinfo import summary
 from torchvision import transforms
 
-from modules import net, trainer
+from modules import net, trainer, loss
 from modules.dataset import ChestXRayImageDataset, ChestXRayImages
 
 
@@ -79,7 +79,9 @@ def main():
     ))
 
     # Setting the training variables
-    trainer.criterion = nn.BCEWithLogitsLoss()
+    # trainer.criterion = nn.BCEWithLogitsLoss()
+    trainer.criterion = loss.BinaryFocalLossWithLogits(alpha=0.5,
+                                                       reduction='mean')
     trainer.optimizer = optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr = args.lr
