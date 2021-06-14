@@ -81,9 +81,6 @@ def train_epoch(
 
         start_time = time.time()
 
-    # scheduler step
-    scheduler.step()
-
     return train_loss_list, running_train_loss/float(len(loader.dataset))
 
 def val_epoch(
@@ -155,7 +152,8 @@ def run(device: str,
         log_interval: int,
         save_interval: int,
         labels: List,
-        model_dir: str):
+        model_dir: str,
+        stage: str):
 
     # Create directory where the models will be stored
     if not os.path.exists(model_dir):
@@ -178,21 +176,28 @@ def run(device: str,
         print('-'*55)
         print('VAL')
         print('-'*55)
-        _, _, roc = val_epoch(device          = device,
-                              loader          = val_loader,
-                              model           = model,
-                              labels          = labels,
-                              epochs_till_now = epoch,
-                              final_epoch     = epochs,
-                              log_interval    = log_interval)
+        _, avg_loss, roc = val_epoch(device          = device,
+                                     loader          = val_loader,
+                                     model           = model,
+                                     labels          = labels,
+                                     epochs_till_now = epoch,
+                                     final_epoch     = epochs,
+                                     log_interval    = log_interval)
         print('ROC_AUC_SCORE: {}'.format(roc))
 
-        if (epoch%save_interval == 0):
-            model_loc = os.path.join(model_dir, 'model_weights_epoch_{}.pth'.format(epoch))
-            torch.save(model.state_dict(), model_loc)
-            print('Model saved to {}'.format(model_loc))
+        # when using ReduceLROnPlateau
+        # scheduler.step(avg_loss)
+
+        # when using scheduler unaware of loss
+        scheduler.step()
+
+        # save model after each epoch
+        model_loc = os.path.join(model_dir, 'model_weights_epoch_{}.pth'.format(epoch))
+        torch.save(model.state_dict(), model_loc)
+        print('Model saved to {}'.format(model_loc))
 
 
-    model_loc = os.path.join(model_dir, 'model_weights_final.pth')
+    model_loc = os.path.join(model_dir,
+                             'model_weights_final_{}.pth'.format(stage))
     torch.save(model.state_dict(), model_loc)
     print('Model saved to {}'.format(model_loc))
