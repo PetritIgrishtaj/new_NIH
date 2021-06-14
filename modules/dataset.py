@@ -199,6 +199,8 @@ class ChestXRayImageDataset(VisionDataset):
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         img_path = os.path.join(self.img_dir, self.data.iloc[index, 0])
         img_path = glob.glob(img_path)
+        print(img_path)
+        assert(False)
         img = Image.open(img_path[0]).convert('RGB')
 
         target = torch.tensor(self.data.iloc[index, 2:17].values.astype(np.float32))
