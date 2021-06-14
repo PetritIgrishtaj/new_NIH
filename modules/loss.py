@@ -253,6 +253,7 @@ class BPMLLLoss(torch.nn.Module):
         :param y: target tensor, size: batch_size * n_labels
         :return: size: scalar tensor
         """
+        c = torch.sigmoid(c)
         y = y.float()
         y_bar = -y + 1
         y_norm = torch.pow(y.sum(dim=(1,)), self.bias[0])
