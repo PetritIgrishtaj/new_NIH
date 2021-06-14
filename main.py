@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--train-bs', type = int, default = 64, help = 'train batch size')
     parser.add_argument('--lr', type = float, default = 0.0001, help = 'Learning Rate passed to optimizer')
     parser.add_argument('--step', type = int, default = 1)
-    parser.add_argument('-gamma', type = float, default = 0.5)
+    parser.add_argument('--gamma', type = float, default = 0.5)
     parser.add_argument('--device', type = str, default = 'cpu', help = 'Force usage of device')
     parser.add_argument('--epochs', type = int, default = 2, help = 'Train for n epochs')
     parser.add_argument('--log-interval', type = int, default = 5, help = 'log every n batches')
@@ -44,7 +44,11 @@ def main():
         device = torch.device('cpu')
 
 
-    data_wrapper = ChestXRayImages(args.data_path, folds=args.folds, frac=args.data_frac)
+    data_wrapper = ChestXRayImages(root  = args.data_path,
+                                   folds = args.folds,
+                                   frac  = args.data_frac,
+                                   seed  = args.seed)
+
     data_train = ChestXRayImageDataset(
         args.data_path,
         data_wrapper.data_train(args.fold_id),
@@ -79,9 +83,7 @@ def main():
     ))
 
     # Setting the training variables
-    # trainer.criterion = nn.BCEWithLogitsLoss()
-    trainer.criterion = loss.BinaryFocalLossWithLogits(alpha=0.25,
-                                                       reduction='sum')
+    trainer.criterion = nn.BCEWithLogitsLoss()
     trainer.optimizer = optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr = args.lr
@@ -91,6 +93,11 @@ def main():
         step_size = args.step,
         gamma = args.gamma
     )
+    # trainer.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    #     trainer.optimizer,
+    #     factor=0.5,
+    #     patience=2
+    # )
 
     # Run the training
     trainer.run(device        = device,
@@ -102,6 +109,10 @@ def main():
                 save_interval = args.save_interval,
                 labels        = data_train.labels,
                 model_dir     = args.model_path)
+
+    # reset trainable parameters.
+    # possibly adjust optimizer and scheduler
+    # rerun trainer.run()
 
 if __name__ == "__main__":
     main()
