@@ -1,4 +1,5 @@
 import glob
+import random
 import os
 from functools import reduce
 from itertools import chain
@@ -27,6 +28,7 @@ class ChestXRayImages():
         root: str,
         folds: int,
         frac: float = 1
+        seed: int = 0
     ):
         _data = None
         _test_files = None
@@ -41,7 +43,8 @@ class ChestXRayImages():
             usecols=['Image Index', 'Finding Labels', 'Patient ID']
         )
 
-        _data = _data.sample(frac=frac)
+        if(frac < 1):
+            _data = _data.sample(frac=frac)
 
         _data.rename(columns = {
             'Image Index': 'idx',
@@ -64,7 +67,7 @@ class ChestXRayImages():
 
         # perform k-fold train data split
         # self._data_train is not passed as a parameter to prevent large memory usage
-        self.filters = self._kfold_split(folds)
+        self.filters = self._kfold_split(folds, seed=seed)
 
 
     def _kfold_split(self, folds: int, seed: int = 0) -> List[List[bool]]:
@@ -98,19 +101,24 @@ class ChestXRayImages():
         items_per_fold = int(len(self._data_train)/folds)
         items_used = [False]*len(self._data_train)
 
-        _filters = [None for x in range(folds)]
-        for i in range(folds-1):
-            _start = i * items_per_fold
-            _end = _start + items_per_fold - 1
+        _filters = [[False]*len(self._data_train) for x in range(folds)]
 
-            fold_length = _end - _start + 1
-            _filters[i] = [False]*len(self._data_train)
+        group_iterator = self._data_train.groupby(['patient'], as_index=False)
+        group_list = list(group_iterator.groups.values())
 
-            for j in range(_start, _end+1):
-                items_used[j] = True
-                _filters[i][j] = True
+        # makes sure that all images of a single patient are in the same fold
+        random.seed(seed)
+        random.shuffle(group_list)
 
-        _filters[folds-1] = [not x for x in items_used]
+        curr_group = 0
+        curr_group_cnt = 0
+        for v in group_list:
+            if curr_group_cnt > items_per_fold:
+                curr_group += 1
+                curr_group_cnt = 0
+            curr_group_cnt += len(v)
+            for idx in v:
+                _filters[curr_group][idx] = True
 
 
         # Do not delete the following
@@ -125,7 +133,7 @@ class ChestXRayImages():
             raise ValueError('some items are not in any fold')
 
         # makes sure each element is in exactly one fold
-        if not all(reduce(np.logical_xor, _filters)):
+        if not all([sum(x)==1 for x in zip(*_filters)]):
             raise ValueError('some items are in more than one fold')
 
         return _filters
