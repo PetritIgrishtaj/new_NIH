@@ -184,6 +184,7 @@ def run(device: str,
                                      final_epoch     = epochs,
                                      log_interval    = log_interval)
         print('ROC_AUC_SCORE: {}'.format(roc))
+        print('AVG Loss in validation set: {}'.format(avg_loss))
 
         # when using ReduceLROnPlateau
         # scheduler.step(avg_loss)
