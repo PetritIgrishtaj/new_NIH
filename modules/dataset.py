@@ -164,7 +164,7 @@ class ChestXRayImages():
 
 
 class ChestXRayImageDataset(VisionDataset):
-    rel_img_dir = 'images_*/images'
+    rel_img_dir = 'images-224/images-224'
 
     labels = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema',
               'Effusion', 'Emphysema', 'Fibrosis', 'Hernia', 'Infiltration',
