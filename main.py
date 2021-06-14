@@ -108,7 +108,8 @@ def main():
                 log_interval  = args.log_interval,
                 save_interval = args.save_interval,
                 labels        = data_train.labels,
-                model_dir     = args.model_path)
+                model_dir     = args.model_path,
+                stage         = '0')
 
     # reset trainable parameters.
     # possibly adjust optimizer and scheduler

@@ -27,7 +27,7 @@ class ChestXRayImages():
         self,
         root: str,
         folds: int,
-        frac: float = 1
+        frac: float = 1,
         seed: int = 0
     ):
         _data = None
