@@ -11,8 +11,10 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from typing import Callable
+from .loss import hamming_loss
 
-criterion: _Loss        = None
+criterion_t: _Loss      = None
+criterion_v: _Loss      = None
 optimizer: Optimizer    = None
 scheduler: _LRScheduler = None
 
@@ -58,7 +60,7 @@ def train_epoch(
         optimizer.zero_grad()
 
         out  = model(img)
-        loss = criterion(out, target)
+        loss = criterion_t(out, target)
 
         running_train_loss += loss.item()*img.shape[0]
         train_loss_list.append(loss.item())
@@ -115,7 +117,8 @@ def val_epoch(
             target = target.to(device)
 
             out = model(img)
-            loss = criterion(out, target)
+            loss = criterion_v(out, target)
+            h_loss = hamming_loss(out, target)
             running_val_loss += loss.item()*img.shape[0]
             val_loss_list.append(loss.item())
 
@@ -127,13 +130,12 @@ def val_epoch(
             if ((batch_idx+1)%log_interval == 0):
                 batch_time = time.time() - batch_start_time
                 m, s = divmod(batch_time, 60)
-                print('Val Loss   for batch {}/{} @epoch{}/{}: {} in {} mins {} secs'.format(
+                print('Val Loss for batch {}/{} @epoch{}/{}: {} in {} secs'.format(
                     str(batch_idx+1).zfill(3),
                     str(len(loader)).zfill(3),
                     epochs_till_now,
                     final_epoch,
-                    round(loss.item(), 5),
-                    int(m),
+                    round(h_loss.item(), 5),
                     round(s, 2)
                 ))
 
@@ -160,7 +162,8 @@ def run(device: str,
         os.mkdir(model_dir)
 
     model.to(device)
-    criterion.to(device)
+    criterion_t.to(device)
+    criterion_v.to(device)
 
     for epoch in range(1, epochs+1):
         print('-'*55)
