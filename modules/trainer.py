@@ -189,11 +189,11 @@ def run(device: str,
         print('ROC_AUC_SCORE: {}'.format(roc))
         print('AVG Loss in validation set: {}'.format(avg_loss))
 
-        # when using ReduceLROnPlateau
-        # scheduler.step(avg_loss)
+        when using ReduceLROnPlateau
+        scheduler.step(avg_loss)
 
         # when using scheduler unaware of loss
-        scheduler.step()
+        # scheduler.step()
 
         # save model after each epoch
         model_loc = os.path.join(model_dir, 'model_weights_epoch_{}.pth'.format(epoch))
