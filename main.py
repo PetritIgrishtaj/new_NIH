@@ -83,24 +83,24 @@ def main():
     ))
 
     # Setting the training variables
-    trainer.criterion_t = nn.BCEWithLogitsLoss()
-    trainer.criterion_v = nn.BCEWithLogitsLoss()
-    # trainer.criterion_t = loss.BPMLLLoss()
-    # trainer.criterion_v = loss.BPMLLLoss()
+    # trainer.criterion_t = nn.BCEWithLogitsLoss()
+    # trainer.criterion_v = nn.BCEWithLogitsLoss()
+    trainer.criterion_t = loss.BPMLLLoss()
+    trainer.criterion_v = loss.BPMLLLoss()
     trainer.optimizer  = optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr = args.lr
     )
-    trainer.scheduler = optim.lr_scheduler.StepLR(
-        trainer.optimizer,
-        step_size = args.step,
-        gamma = args.gamma
-    )
-    # trainer.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    # trainer.scheduler = optim.lr_scheduler.StepLR(
     #     trainer.optimizer,
-    #     factor=0.5,
-    #     patience=2
+    #     step_size = args.step,
+    #     gamma = args.gamma
     # )
+    trainer.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        trainer.optimizer,
+        factor=0.5,
+        patience=2
+    )
 
     # Run the training
     trainer.run(device        = device,
