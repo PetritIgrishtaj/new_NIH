@@ -15,8 +15,8 @@ from torchvision.io import read_image
 
 class ChestXRayImages():
     rel_label_file = 'Data_Entry_2017.csv'
-    rel_test_list = 'test_list_NIH.txt'
-    rel_img_dir = 'images-224/images-224'
+    rel_test_list = 'test_list.txt'
+    rel_img_dir = 'images_*/images'
 
     _data_train = None
     _data_test = None
@@ -164,7 +164,7 @@ class ChestXRayImages():
 
 
 class ChestXRayImageDataset(VisionDataset):
-    rel_img_dir = 'images-224/images-224'
+    rel_img_dir = 'images_*/images'
 
     labels = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema',
               'Effusion', 'Emphysema', 'Fibrosis', 'Hernia', 'Infiltration',

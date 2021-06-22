@@ -54,7 +54,6 @@ def train_epoch(
 
     start_time = time.time()
     for batch_idx, (img, target) in enumerate(loader):
-
         img, target = img.to(device), target.to(device)
 
         optimizer.zero_grad()
