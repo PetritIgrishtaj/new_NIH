@@ -12,7 +12,7 @@ from modules.dataset import ChestXRayImageDataset, ChestXRayImages
 
 
 transform = transforms.Compose([
-    # transforms.Resize(224),
+    transforms.Resize(224),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225])
@@ -38,10 +38,9 @@ def main():
     parser.add_argument('--seed', type=int, default=0, help='Seed the random generator to get reproducability')
     args = parser.parse_args()
 
-    if args.device == 'cuda':
-        device = torch.device("cuda")
-    else:
-        device = torch.device('cpu')
+    device = torch.device(args.device)
+    print(device)
+    print(torch.cuda.is_available())
 
 
     data_wrapper = ChestXRayImages(root  = args.data_path,
@@ -83,10 +82,10 @@ def main():
     ))
 
     # Setting the training variables
-    # trainer.criterion_t = nn.BCEWithLogitsLoss()
-    # trainer.criterion_v = nn.BCEWithLogitsLoss()
-    trainer.criterion_t = loss.BPMLLLoss()
-    trainer.criterion_v = loss.BPMLLLoss()
+    trainer.criterion_t = nn.BCEWithLogitsLoss()
+    trainer.criterion_v = nn.BCEWithLogitsLoss()
+    # trainer.criterion_t = loss.BPMLLLoss()
+    # trainer.criterion_v = loss.BPMLLLoss()
     trainer.optimizer  = optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr = args.lr
