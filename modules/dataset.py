@@ -12,6 +12,34 @@ from PIL import Image
 from torchvision.datasets import VisionDataset
 from torchvision.io import read_image
 
+class ChestXRayNPYDataset():
+
+    _data    = None
+    _targets = None
+
+    labels = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema',
+              'Effusion', 'Emphysema', 'Fibrosis', 'Hernia', 'Infiltration',
+              'Mass', 'Nodule', 'Pleural_Thickening', 'Pneumonia',
+              'Pneumothorax', 'none']
+
+    def __init__(
+        self,
+        file: str,
+        transform: Optional[Callable] = None,
+        target_transform: Optional[Callable] = None,
+    ):
+        with open(file, 'rb') as f:
+            self._data    = np.load(f)
+            self._targets = np.load(f, allow_pickle=True).astype(int)
+
+    def __len__(self):
+        return self._targets.shape[0]
+
+    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+        data = self._data[index]
+        target = self._targets[index][1:].astype(np.float32)  # leave out patient id
+        return data, target
+
 
 class ChestXRayImages():
     rel_label_file = 'Data_Entry_2017.csv'

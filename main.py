@@ -8,7 +8,7 @@ from torchinfo import summary
 from torchvision import transforms
 
 from modules import net, trainer, loss
-from modules.dataset import ChestXRayImageDataset, ChestXRayImages
+from modules.dataset import ChestXRayImageDataset, ChestXRayImages, ChestXRayNPYDataset
 
 
 transform = transforms.Compose([
@@ -20,7 +20,9 @@ transform = transforms.Compose([
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-path', type = str, help = 'Path to training data')
+    # parser.add_argument('--data-path', type = str, help = 'Path to training data')
+    parser.add_argument('--data-train', type = str)
+    parser.add_argument('--data-test', type = str)
     parser.add_argument('--model-path', type = str, help = 'Path to store models')
     parser.add_argument('--test-bs', type = int, default = 64, help = 'test batch size')
     parser.add_argument('--val-bs', type = int, default = 64, help = 'val batch size')
@@ -38,37 +40,44 @@ def main():
     parser.add_argument('--seed', type=int, default=0, help='Seed the random generator to get reproducability')
     args = parser.parse_args()
 
+    data_train = ChestXRayNPYDataset(file      = args.data_train,
+                                     transform = transform)
+
+    data_test  = ChestXRayNPYDataset(file      = args.data_test,
+                                     transform = transform)
+
+
     device = torch.device(args.device)
     print(device)
     print(torch.cuda.is_available())
 
 
-    data_wrapper = ChestXRayImages(root  = args.data_path,
-                                   folds = args.folds,
-                                   frac  = args.data_frac,
-                                   seed  = args.seed)
+    # data_wrapper = ChestXRayImages(root  = args.data_path,
+    #                                folds = args.folds,
+    #                                frac  = args.data_frac,
+    #                                seed  = args.seed)
 
-    data_train = ChestXRayImageDataset(
-        args.data_path,
-        data_wrapper.data_train(args.fold_id),
-        transform=transform
-    )
-    data_val = ChestXRayImageDataset(
-        args.data_path,
-        data_wrapper.data_val(args.fold_id),
-        transform=transform
-    )
-    data_test = ChestXRayImageDataset(
-        args.data_path,
-        data_wrapper.data_test,
-        transform=transform
-    )
+    # data_train = ChestXRayImageDataset(
+    #     args.data_path,
+    #     data_wrapper.data_train(args.fold_id),
+    #     transform=transform
+    # )
+    # data_val = ChestXRayImageDataset(
+    #     args.data_path,
+    #     data_wrapper.data_val(args.fold_id),
+    #     transform=transform
+    # )
+    # data_test = ChestXRayImageDataset(
+    #     args.data_path,
+    #     data_wrapper.data_test,
+    #     transform=transform
+    # )
 
 
     test_loader = torch.utils.data.DataLoader(data_test,
                                               batch_size=args.test_bs)
-    val_loader = torch.utils.data.DataLoader(data_val,
-                                             batch_size=args.val_bs)
+    # val_loader = torch.utils.data.DataLoader(data_val,
+    #                                          batch_size=args.val_bs)
     train_loader = torch.utils.data.DataLoader(data_train,
                                                batch_size=args.train_bs)
 
@@ -78,7 +87,7 @@ def main():
     summary(model, input_size=(args.train_bs, 3, 244, 244))
     print('Using device: {}'.format(device))
     print('With {} Test datasets, {} val data sets and {} train datasets'.format(
-        len(data_test), len(data_val), len(data_train)
+        len(data_test), len(data_test), len(data_train)
     ))
 
     # Setting the training variables
@@ -105,7 +114,7 @@ def main():
     trainer.run(device        = device,
                 model         = model,
                 train_loader  = train_loader,
-                val_loader    = val_loader,
+                val_loader    = test_loader,
                 epochs        = args.epochs,
                 log_interval  = args.log_interval,
                 save_interval = args.save_interval,
