@@ -9,10 +9,12 @@ import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
+from torch.utils.data.dataset import Subset, Dataset
+from torch import default_generator, randperm, Generator
 from torchvision.datasets import VisionDataset
 from torchvision.io import read_image
 
-class ChestXRayNPYDataset():
+class ChestXRayNPYDataset(Dataset):
 
     _data    = None
     _targets = None
@@ -28,6 +30,9 @@ class ChestXRayNPYDataset():
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
     ):
+        self.transform = transform
+        self.target_transform = target_transform
+
         with open(file, 'rb') as f:
             self._data    = np.load(f)
             self._targets = np.load(f, allow_pickle=True).astype(int)
@@ -38,18 +43,55 @@ class ChestXRayNPYDataset():
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         data = self._data[index]
         target = self._targets[index][1:].astype(np.float32)  # leave out patient id
+
+        if self.transform is not None:
+            data = self.transform(data)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
         return data, target
+
+
+def k_fold_split_patient_aware(
+    dataset: ChestXRayNPYDataset,
+    folds: int,
+    val_id: int,
+    generator: Optional[Generator] = default_generator
+) -> Tuple[Subset[ChestXRayNPYDataset]]:
+    # zip(dataset._data[:,0], itertools.count())
+    zipped = np.c_[dataset._targets[:,0], np.arange(0, len(dataset))]
+    zipped = zipped[zipped[:, 0].argsort()]
+    grouped = np.split(zipped[:,1], np.unique(zipped[:,0], return_index=True)[1][1:])
+
+    random.shuffle(grouped)
+
+    items_per_fold = int(len(dataset)/folds)
+    folded_ids = [[] for x in range(folds)]
+
+    curr_group = 0
+    curr_group_cnt = 0
+    for ids in grouped:
+        if curr_group_cnt >= items_per_fold:
+            curr_group += 1
+            curr_group_cnt = 0
+        curr_group_cnt += len(ids)
+        folded_ids[curr_group].extend(ids.tolist())
+    val_ids = folded_ids.pop(val_id)
+    train_ids = list(chain(*folded_ids))
+
+    return Subset(dataset, val_ids), Subset(dataset, train_ids)
 
 
 class ChestXRayImages():
     rel_label_file = 'Data_Entry_2017.csv'
-    rel_test_list = 'test_list.txt'
-    rel_img_dir = 'images_*/images'
+    rel_test_list  = 'test_list.txt'
+    rel_img_dir    = 'images_*/images'
 
     _data_train = None
-    _data_test = None
+    _data_test  = None
 
-    filters = []
+    filters     = []
 
     def __init__(
         self,

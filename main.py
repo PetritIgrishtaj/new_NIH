@@ -7,16 +7,11 @@ import torch.optim as optim
 from torchinfo import summary
 from torchvision import transforms
 
-from modules import net, trainer, loss
+from modules import net, trainer, loss, dataset
 from modules.dataset import ChestXRayImageDataset, ChestXRayImages, ChestXRayNPYDataset
 
 
-transform = transforms.Compose([
-    transforms.Resize(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225])
-])
+transform = transforms.Compose([])
 
 def main():
     parser = argparse.ArgumentParser()
@@ -40,48 +35,29 @@ def main():
     parser.add_argument('--seed', type=int, default=0, help='Seed the random generator to get reproducability')
     args = parser.parse_args()
 
-    data_train = ChestXRayNPYDataset(file      = args.data_train,
+    device = torch.device(args.device)
+
+    data       = ChestXRayNPYDataset(file      = args.data_train,
                                      transform = transform)
 
     data_test  = ChestXRayNPYDataset(file      = args.data_test,
                                      transform = transform)
 
-
-    device = torch.device(args.device)
-    print(device)
-    print(torch.cuda.is_available())
-
-
-    # data_wrapper = ChestXRayImages(root  = args.data_path,
-    #                                folds = args.folds,
-    #                                frac  = args.data_frac,
-    #                                seed  = args.seed)
-
-    # data_train = ChestXRayImageDataset(
-    #     args.data_path,
-    #     data_wrapper.data_train(args.fold_id),
-    #     transform=transform
-    # )
-    # data_val = ChestXRayImageDataset(
-    #     args.data_path,
-    #     data_wrapper.data_val(args.fold_id),
-    #     transform=transform
-    # )
-    # data_test = ChestXRayImageDataset(
-    #     args.data_path,
-    #     data_wrapper.data_test,
-    #     transform=transform
-    # )
+    split      = dataset.k_fold_split_patient_aware(dataset = data,
+                                                    folds   = 5,
+                                                    val_id  = 0)
+    data_val, data_train = split
 
 
-    test_loader = torch.utils.data.DataLoader(data_test,
-                                              batch_size=args.test_bs)
-    # val_loader = torch.utils.data.DataLoader(data_val,
-    #                                          batch_size=args.val_bs)
+
+    test_loader  = torch.utils.data.DataLoader(data_test,
+                                               batch_size=args.test_bs)
+    val_loader   = torch.utils.data.DataLoader(data_val,
+                                               batch_size=args.val_bs)
     train_loader = torch.utils.data.DataLoader(data_train,
                                                batch_size=args.train_bs)
 
-    model = net.get_model(len(ChestXRayImageDataset.labels))
+    model = net.get_model(len(ChestXRayNPYDataset.labels))
 
     # Print Network and training info
     summary(model, input_size=(args.train_bs, 3, 244, 244))
@@ -118,7 +94,7 @@ def main():
                 epochs        = args.epochs,
                 log_interval  = args.log_interval,
                 save_interval = args.save_interval,
-                labels        = data_train.labels,
+                labels        = ChestXRayNPYDataset.labels,
                 model_dir     = args.model_path,
                 stage         = '0')
 
