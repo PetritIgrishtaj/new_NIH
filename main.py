@@ -1,17 +1,35 @@
 import argparse
 import os
+import random
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchinfo import summary
 from torchvision import transforms
 
-from modules import net, trainer, loss, dataset
-from modules.dataset import ChestXRayImageDataset, ChestXRayImages, ChestXRayNPYDataset
-
+from modules import dataset, loss, net, trainer
+from modules.dataset import (ChestXRayImageDataset, ChestXRayImages,
+                             ChestXRayNPYDataset)
 
 transform = transforms.Compose([])
+
+def seed_everything(seed: int):
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+
+def test_model():
+    data_test  = ChestXRayNPYDataset(file      = args.data_test,
+                                     transform = transform)
+    test_loader  = torch.utils.data.DataLoader(data_test,
+                                               batch_size=args.test_bs)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -35,23 +53,25 @@ def main():
     parser.add_argument('--seed', type=int, default=0, help='Seed the random generator to get reproducability')
     args = parser.parse_args()
 
+    # Get reproducability
+    seed_everything(args.seed)
+
+    # Use exactly the supplied device. No error handling whatsoever
     device = torch.device(args.device)
 
+    # Loads the entire train/val dataset with official test data left out
     data       = ChestXRayNPYDataset(file      = args.data_train,
                                      transform = transform)
 
-    data_test  = ChestXRayNPYDataset(file      = args.data_test,
-                                     transform = transform)
-
+    # Perform a k-fold split with random.shuffle()
     split      = dataset.k_fold_split_patient_aware(dataset = data,
                                                     folds   = 5,
                                                     val_id  = 0)
     data_val, data_train = split
 
 
-
-    test_loader  = torch.utils.data.DataLoader(data_test,
-                                               batch_size=args.test_bs)
+    # simple data loaders are enough, as everything is in memory anyway
+    # and using a single gpu suffices. As GPU speed is not the bottleneck
     val_loader   = torch.utils.data.DataLoader(data_val,
                                                batch_size=args.val_bs)
     train_loader = torch.utils.data.DataLoader(data_train,
