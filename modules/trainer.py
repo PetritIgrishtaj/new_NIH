@@ -116,8 +116,8 @@ def val_epoch(
             target = target.to(device)
 
             out = model(img)
-            c_loss = criterion_v(out, target)
-            loss = hamming_loss(out, target)
+            loss = criterion_v(out, target)
+            h_loss = hamming_loss(out, target)
             running_val_loss += loss.item()*img.shape[0]
             val_loss_list.append(loss.item())
 
