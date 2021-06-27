@@ -33,7 +33,6 @@ def test_model():
 
 def main():
     parser = argparse.ArgumentParser()
-    # parser.add_argument('--data-path', type = str, help = 'Path to training data')
     parser.add_argument('--data-train', type = str)
     parser.add_argument('--data-test', type = str)
     parser.add_argument('--model-path', type = str, help = 'Path to store models')
@@ -49,7 +48,7 @@ def main():
     parser.add_argument('--save-interval', type = int, default = 5, help = 'save every n batches')
     parser.add_argument('--data-frac', type = float, default = 1, help = 'use only fraction of the data')
     parser.add_argument('--folds', type=int, default=5, help='how many folds to produce')
-    parser.add_argument('--fold-id', type=int, default=0, help='Which fold id to use for test/val split')
+    parser.add_argument('--val-id', type=int, default=0, help='Which fold id to use for test/val split')
     parser.add_argument('--seed', type=int, default=0, help='Seed the random generator to get reproducability')
     args = parser.parse_args()
 
@@ -65,8 +64,8 @@ def main():
 
     # Perform a k-fold split with random.shuffle()
     split      = dataset.k_fold_split_patient_aware(dataset = data,
-                                                    folds   = 5,
-                                                    val_id  = 0)
+                                                    folds   = args.folds,
+                                                    val_id  = args.val_id)
     data_val, data_train = split
 
 
