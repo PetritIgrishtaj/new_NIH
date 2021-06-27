@@ -42,8 +42,8 @@ class ChestXRayNPYDataset(Dataset):
         return self._targets.shape[0]
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        data = self._data[index]
-        target = self._targets[index][1:].astype(np.float32)  # leave out patient id
+        data = torch.as_tensor(self._data[index])
+        target = torch.as_tensor(self._targets[index][1:].astype(np.float32))  # leave out patient id
 
         if self.transform is not None:
             data = self.transform(data)
