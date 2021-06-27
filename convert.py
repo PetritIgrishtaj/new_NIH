@@ -1,10 +1,11 @@
-import glob, os
-import pandas as pd
 import argparse
-from PIL import Image
-import numpy as np
-import torchvision.transforms as transforms
+import glob
+import os
 
+import numpy as np
+import pandas as pd
+import torchvision.transforms as transforms
+from PIL import Image
 
 transform = transforms.Compose([
     transforms.ToTensor(),

@@ -1,6 +1,6 @@
 import os
 import time
-from typing import List
+from typing import Callable, List
 
 import numpy as np
 import torch
@@ -10,7 +10,7 @@ from torch.nn.modules.loss import _Loss
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from typing import Callable
+
 from .loss import hamming_loss
 
 criterion_t: _Loss      = None
