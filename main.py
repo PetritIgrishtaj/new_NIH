@@ -9,11 +9,14 @@ import torch.optim as optim
 from torchinfo import summary
 from torchvision import transforms
 
-from modules import dataset, loss, net, trainer, collate
+from modules import collate, dataset, loss, net, trainer
 from modules.dataset import (ChestXRayImageDataset, ChestXRayImages,
                              ChestXRayNPYDataset)
 
-transform = transforms.Compose([])
+transform = transforms.Compose([
+    transforms.RandomRotation((-7, 7)),
+    transforms.RandomHorizontalFlip(p=0.25)
+])
 
 def seed_everything(seed: int):
     os.environ['PYTHONHASHSEED'] = str(seed)

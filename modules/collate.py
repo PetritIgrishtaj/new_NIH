@@ -1,8 +1,9 @@
 
-import re
-import torch
 import collections
+import re
+
 import numpy as np
+import torch
 
 np_str_obj_array_pattern = re.compile(r'[SaUO]')
 
