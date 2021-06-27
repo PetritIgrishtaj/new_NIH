@@ -9,7 +9,7 @@ import torch.optim as optim
 from torchinfo import summary
 from torchvision import transforms
 
-from modules import dataset, loss, net, trainer
+from modules import dataset, loss, net, trainer, collate
 from modules.dataset import (ChestXRayImageDataset, ChestXRayImages,
                              ChestXRayNPYDataset)
 
@@ -71,10 +71,13 @@ def main():
 
     # simple data loaders are enough, as everything is in memory anyway
     # and using a single gpu suffices. As GPU speed is not the bottleneck
+
+
     val_loader   = torch.utils.data.DataLoader(data_val,
                                                batch_size=args.val_bs)
     train_loader = torch.utils.data.DataLoader(data_train,
-                                               batch_size=args.train_bs)
+                                               batch_size=args.train_bs,
+                                               collate_fn=collate.cf)
 
     model = net.get_model(len(ChestXRayNPYDataset.labels))
 
