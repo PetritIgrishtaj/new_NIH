@@ -74,10 +74,9 @@ def main():
 
     # simple data loaders are enough, as everything is in memory anyway
     # and using a single gpu suffices. As GPU speed is not the bottleneck
-
-
     val_loader   = torch.utils.data.DataLoader(data_val,
-                                               batch_size=args.val_bs)
+                                               batch_size=args.val_bs,
+                                               collate_fn=collate.cf)
     train_loader = torch.utils.data.DataLoader(data_train,
                                                batch_size=args.train_bs,
                                                collate_fn=collate.cf)
